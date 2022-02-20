@@ -27,30 +27,25 @@ def textFromPDF(filename):
 def rezonings(minutes):
 	# Extract the Public Hearings section
 	pubHearingsExtract = textBetween(r'\s+[A-Z]\.\s+PUBLIC HEARINGS\s*\n',
-									 r'\s+[A-Z]\.\s+[A-Z ]*\s*\n',
+									 r'\n\s+[A-Z]\.\s+[A-Z ]+\s*\n',
 									 minutes)
 
-	# Identify all of the numbered headings
-	headings = re.findall(r'(?:\n|^)(?:\.?\s+)(\d+.?\s+[a-zA-Z ]+):?\s*\n', pubHearingsExtract)
-	hNum = 1
-	for h in headings[:]:
-		if re.match(r"^%s\.?\s+" % hNum, h):
-			hNum = hNum + 1
-		else:
-			# print "Not found: ", hNum, h
-			headings.remove(h)
-
-	# Pull out each section for the heading
 	namedSections = list()
-	for i in range(len(headings)):
-		head = headings[i]
-		name = re.findall(r'\d+\.?\s+([a-zA-Z ]+)', head)[0]
-		tail = None
-		if i < len(headings)-1:
-			tail = headings[i+1]
-		section = textBetween(head, tail, pubHearingsExtract)
-
-		namedSections.append(tuple((name, section)))
+	# Identify all of the numbered headings
+	hNum = 1
+	heading = None
+	remainingText = pubHearingsExtract
+	m = re.search('\s'+str(hNum)+'\.?\s+([a-zA-Z \-]+)(?::|\s*\n)', remainingText)
+	while m != None:
+		if heading != None:
+			section = remainingText[:m.start()]
+			namedSections.append(tuple((heading,section)))
+		heading = m.groups()[0]
+		remainingText = remainingText[m.end():]
+		hNum = hNum + 1
+		m = re.search('\s'+str(hNum)+'\.?\s+([a-zA-Z \-]+)(?::|\s*\n)', remainingText)
+	if heading != None:
+		namedSections.append(tuple((heading,remainingText)))
 
 	# Select only the "Rezoning" sections
 	return [x for x in namedSections if x[0] == 'Rezoning']
@@ -107,7 +102,7 @@ def extractRezoningData(section):
 
 	if re.search(r'Department\s{2}', staffText):
 		misplacedNotes = textBetween(r'Department\s{2}', None, staffText)
-		staffText = textBetween(None, misplacedNotes, staffText)
+		staffText = staffText[:staffText.find(misplacedNotes)]
 		notes = misplacedNotes + ' ' + notes
 
  	# try to pick out resolution from notes
@@ -171,17 +166,17 @@ csv = '"{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}"'
 
 files = os.listdir('./minutes')
 #files = ['document_D5D26F4D-BDCD-7E3E-4991993167E6872E.pdf']
-files = ['document_D670A5C7-FDF0-19D7-1BE03C010033317D.pdf']
+#files = ['document_D5D2A3D8-F673-6045-497BC76CC76A6CF4.pdf']
 
 print '"Date","Case Number","Address","District","Watershed","NP Area","Owner/Applicant","Agent Firm","Agent","From","To","Staff","Staff Recommendation","Result"'
 for minutesFile in files:
-	try:
+#	try:
 		minutes = textFromPDF('./minutes/'+minutesFile)
 
 		date = textBetween('MINUTES', '(?!\s*\w+\s*\d{1,2}\s*,\s*\d{4}\s*)[a-zA-Z]', minutes).replace('\n', '').strip()
 		rezoningSections = rezonings(minutes)
 		if len(rezoningSections) == 0:
-			print "Nothing found in "+minutesFile
+			print minutesFile
 		for section in rezoningSections:
 			data = extractRezoningData(section)
 		 	print csv.format(
@@ -200,6 +195,6 @@ for minutesFile in files:
 			 	data["staffRec"], 
 			 	data["result"]
 			)
-	except Exception as e:
-		print "Error in file: "+minutesFile
-		print e
+#	except Exception as e:
+#		print "Error in file: "+minutesFile
+#		print e
