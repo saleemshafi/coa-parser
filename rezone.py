@@ -26,7 +26,7 @@ def textFromPDF(filename):
 
 def rezonings(minutes):
 	# Extract the Public Hearings section
-	pubHearingsExtract = textBetween(r'\s+[A-Z]\.\s+PUBLIC HEARINGS\s*\n',
+	pubHearingsExtract = textBetween(r'\s+[A-Z]\.\s+P\n?U\n?B\n?L\n?I\n?C\s+H\n?E\n?A\n?R\n?I\n?N\n?G\n?S\s*\n',
 									 r'\n\s+[A-Z]\.\s+[A-Z ]+\s*\n',
 									 minutes)
 
@@ -41,6 +41,7 @@ def rezonings(minutes):
 			section = remainingText[:m.start()]
 			namedSections.append(tuple((heading,section)))
 		heading = m.groups()[0]
+		print str(hNum)+":"+	heading
 		remainingText = remainingText[m.end():]
 		hNum = hNum + 1
 		m = re.search('\s'+str(hNum)+'\.?\s+([a-zA-Z \-]+)(?::|\s*\n)', remainingText)
@@ -51,7 +52,7 @@ def rezonings(minutes):
 	return [x for x in namedSections if x[0] == 'Rezoning']
 
 
-def extractRezoningData(section):
+def extractRezoningData(filename, section):
 	sectionText = section[1].encode('utf-8')
 	parts = re.split(r'\n\s+\n', sectionText)
 	parts = [x.replace('\n','') for x in parts]
@@ -61,6 +62,7 @@ def extractRezoningData(section):
 
 	# get ID
 	caseNumber = re.findall(r'([\w-]+)', meta.split(' - ')[0])[0]
+
 	district = textBetween(r'District\s+', '(?!\d+)\s', meta)
 
 	# get address / watershed / NP area
@@ -162,13 +164,14 @@ DEBUG = 'Case Number: {}\n' \
 	'Notes:\n' \
 	'{}\n'
 
-csv = '"{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}"'
+csv = '"{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}","{}"'
+csvError = '"{}","{}"'
 
 files = os.listdir('./minutes')
 #files = ['document_D5D26F4D-BDCD-7E3E-4991993167E6872E.pdf']
-#files = ['document_D5D2A3D8-F673-6045-497BC76CC76A6CF4.pdf']
+files = ['document_D67C1715-0EDB-6250-35D8FAD253BCF779.pdf']
 
-print '"Date","Case Number","Address","District","Watershed","NP Area","Owner/Applicant","Agent Firm","Agent","From","To","Staff","Staff Recommendation","Result"'
+print '"File","Status","Date","Case Number","Address","District","Watershed","NP Area","Owner/Applicant","Agent Firm","Agent","From","To","Staff","Staff Recommendation","Result"'
 for minutesFile in files:
 #	try:
 		minutes = textFromPDF('./minutes/'+minutesFile)
@@ -176,25 +179,32 @@ for minutesFile in files:
 		date = textBetween('MINUTES', '(?!\s*\w+\s*\d{1,2}\s*,\s*\d{4}\s*)[a-zA-Z]', minutes).replace('\n', '').strip()
 		rezoningSections = rezonings(minutes)
 		if len(rezoningSections) == 0:
-			print minutesFile
-		for section in rezoningSections:
-			data = extractRezoningData(section)
-		 	print csv.format(
-			 	date,
-			 	data["caseNumber"],
-			 	data["address"], 
-			 	data["district"],
-			 	data["watershed"],
-			 	data["npArea"], 
-			 	data["fullOwnerText"], 
-			 	data["agentFirm"],
-			 	data["agent"], 
-			 	data["from"],
-			 	data["to"],
-			 	data["staffName"], 
-			 	data["staffRec"], 
-			 	data["result"]
-			)
+			print csvError.format(minutesFile, 'No Rezonings')
+		else:
+			for section in rezoningSections:
+				try:
+					data = extractRezoningData(minutesFile, section)
+				except Exception as e:
+					print csvError.format(minutesFile, 'Error')
+				else:
+				 	print csv.format(
+				 		minutesFile,
+				 		'Success',
+					 	date,
+					 	data["caseNumber"],
+					 	data["address"], 
+					 	data["district"],
+					 	data["watershed"],
+					 	data["npArea"], 
+					 	data["fullOwnerText"], 
+					 	data["agentFirm"],
+					 	data["agent"], 
+					 	data["from"],
+					 	data["to"],
+					 	data["staffName"], 
+					 	data["staffRec"], 
+					 	data["result"]
+					)
 #	except Exception as e:
 #		print "Error in file: "+minutesFile
 #		print e
