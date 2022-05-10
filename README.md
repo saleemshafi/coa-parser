@@ -13,6 +13,11 @@ The contents are divided into three main pieces:
 
 This work is covered by the code in `coa_scraper`.  This uses the Scrapy framework and most of the meaningful logic is in `coa_scraper/coa_scraper/spiders/ACCMeetingSpider.py`.
 
+From the `coa_scraper/coa_scraper` folder, execute this line:
+```
+scrapy runspider spiders/ACCMeetingSpider.py
+```
+
 There are a ton of files and this takes a while, but it should just be a one-time job.
 
 Once downloaded, you can use pdf2text.py or pdf2text_py3.py to convert them to text and make them searchable. The first uses pdf2py and the second uses pdfminer to do the extraction.  I believe the latter produced more searchable results.
